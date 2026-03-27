@@ -33,6 +33,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+import sqlite3
+
+def init_database():
+    db_path = os.getenv('DATABASE_PATH', 'catalog_bot.db')
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, telegram_id INTEGER UNIQUE NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, registered_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, price REAL, article TEXT, photo_path TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, products TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    conn.commit()
+    conn.close()
+
+init_database()
+
 
 UPLOAD_PATH = Path(UPLOAD_DIR)
 UPLOAD_PATH.mkdir(exist_ok=True)
