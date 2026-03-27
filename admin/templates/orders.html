@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Заявки{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0">Заявки <span class="badge bg-warning text-dark fs-6">{{ orders|length }}</span></h2>
+    <form method="get" class="d-flex gap-2" style="min-width:300px;">
+        <input type="text" name="search" class="form-control" placeholder="Поиск по имени или телефону..."
+               value="{{ search }}">
+        <button type="submit" class="btn btn-outline-primary">🔍</button>
+        {% if search %}<a href="/admin/orders" class="btn btn-outline-secondary">✕</a>{% endif %}
+    </form>
+</div>
+<div class="card stat-card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-4">#</th>
+                    <th>Клиент</th>
+                    <th>Телефон</th>
+                    <th>Товары</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for o in orders %}
+            <tr>
+                <td class="ps-4 text-muted fw-bold">#{{ o.id }}</td>
+                <td class="fw-semibold">{{ o.user_name }}</td>
+                <td>{{ o.phone }}</td>
+                <td>
+                    {% for name in o.products %}
+                    <span class="badge bg-light text-dark border me-1">{{ name }}</span>
+                    {% endfor %}
+                </td>
+                <td class="text-muted">{{ o.created_at }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-5">Заявок не найдено</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
