@@ -95,7 +95,6 @@ async def admin_add_product(
         photo_path = filename
 
     price_val = float(price.strip().replace('$','').replace(',','.')) if price.strip() else None
-```
     await create_product(name, description or None, price_val, article or None, photo_path)
     return RedirectResponse("/admin/products", status_code=303)
 
