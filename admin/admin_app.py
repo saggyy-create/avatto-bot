@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request, Form, File, UploadFile, Depends, HTTPExcep
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "bot"))
@@ -25,6 +26,13 @@ from database.db import (
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="Catalog Bot Admin")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 UPLOAD_PATH = Path(UPLOAD_DIR)
 UPLOAD_PATH.mkdir(exist_ok=True)
