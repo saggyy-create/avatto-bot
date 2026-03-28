@@ -47,15 +47,16 @@
             border-color: var(--tg-theme-button-color, #2196F3);
             box-shadow: 0 0 0 3px rgba(33,150,243,0.15);
         }
-        .product-card .check {
+        .product-card .quantity-badge {
             position: absolute; top: 8px; right: 8px;
-            width: 24px; height: 24px;
+            min-width: 28px; height: 28px;
             background: var(--tg-theme-button-color, #2196F3);
-            border-radius: 50%;
+            border-radius: 14px;
             display: none; align-items: center; justify-content: center;
             color: #fff; font-size: 14px; font-weight: bold;
+            padding: 0 8px;
         }
-        .product-card.selected .check { display: flex; }
+        .product-card.selected .quantity-badge { display: flex; }
         .product-card img {
             width: 100%; height: 140px;
             object-fit: cover; display: block;
@@ -72,6 +73,37 @@
         .product-price {
             font-size: 0.95rem; font-weight: 700; margin-top: 4px;
             color: var(--tg-theme-button-color, #2196F3);
+        }
+        .quantity-controls {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(33,150,243,0.1);
+            border-radius: 8px;
+        }
+        .product-card.selected .quantity-controls { display: flex; }
+        .qty-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--tg-theme-button-color, #2196F3);
+            color: #fff;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qty-btn:active { opacity: 0.7; }
+        .qty-display {
+            font-size: 1.1rem;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
         }
         .empty-state {
             text-align: center; padding: 60px 20px;
@@ -137,10 +169,10 @@
         tg.ready();
 
         // API URL - update to match your server
-        const API_URL = 'https://avatto-bot-l5jf.onrender.com/api/products';
+        const API_URL = 'https://wintery-erminia-deducibly.ngrok-free.dev/api/products';
 
         let products = [];
-        let selected = new Set();
+        let cart = {}; // { productId: quantity }
 
         async function loadProducts() {
             try {
@@ -168,46 +200,77 @@
         function renderProducts() {
             const grid = document.getElementById('productsGrid');
             grid.innerHTML = products.map(p => `
-                <div class="product-card ${selected.has(p.id) ? 'selected' : ''}"
-                     id="card-${p.id}" onclick="toggleProduct(${p.id})">
-                    <div class="check">✓</div>
-                    ${p.photo_url
-                        ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy">`
-                        : `<div class="img-placeholder">📦</div>`
-                    }
+                <div class="product-card ${cart[p.id] ? 'selected' : ''}"
+                     id="card-${p.id}">
+                    <div class="quantity-badge" id="badge-${p.id}">${cart[p.id] || 0}</div>
+                    <div onclick="toggleProduct(${p.id})">
+                        ${p.photo_url
+                            ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy">`
+                            : `<div class="img-placeholder">📦</div>`
+                        }
+                    </div>
                     <div class="product-info">
                         <div class="product-name">${p.name}</div>
                         ${p.article ? `<div class="product-article">${p.article}</div>` : ''}
                         ${p.price ? `<div class="product-price">${Math.round(p.price).toLocaleString('ru')} ₽</div>` : ''}
+                        <div class="quantity-controls">
+                            <button class="qty-btn" onclick="changeQuantity(${p.id}, -1); event.stopPropagation();">−</button>
+                            <div class="qty-display" id="qty-${p.id}">${cart[p.id] || 0}</div>
+                            <button class="qty-btn" onclick="changeQuantity(${p.id}, 1); event.stopPropagation();">+</button>
+                        </div>
                     </div>
                 </div>
             `).join('');
         }
 
         function toggleProduct(id) {
-            if (selected.has(id)) {
-                selected.delete(id);
-                document.getElementById(`card-${id}`).classList.remove('selected');
+            if (cart[id]) {
+                delete cart[id];
             } else {
-                selected.add(id);
-                document.getElementById(`card-${id}`).classList.add('selected');
+                cart[id] = 1;
             }
+            updateProduct(id);
             updateUI();
-            // Haptic feedback
             if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
         }
 
+        function changeQuantity(id, delta) {
+            if (!cart[id]) cart[id] = 0;
+            cart[id] += delta;
+            if (cart[id] <= 0) {
+                delete cart[id];
+            }
+            updateProduct(id);
+            updateUI();
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function updateProduct(id) {
+            const card = document.getElementById(`card-${id}`);
+            const badge = document.getElementById(`badge-${id}`);
+            const qtyDisplay = document.getElementById(`qty-${id}`);
+            
+            if (cart[id]) {
+                card.classList.add('selected');
+                badge.textContent = cart[id];
+                qtyDisplay.textContent = cart[id];
+            } else {
+                card.classList.remove('selected');
+            }
+        }
+
         function updateUI() {
-            const count = selected.size;
+            const itemCount = Object.keys(cart).length;
+            const totalQuantity = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
             const badge = document.getElementById('selectedCount');
             const bar = document.getElementById('bottomBar');
 
-            if (count > 0) {
-                badge.textContent = count;
+            if (itemCount > 0) {
+                badge.textContent = totalQuantity;
                 badge.style.display = 'inline-block';
                 bar.style.display = 'block';
                 document.getElementById('submitBtn').textContent =
-                    `Отправить заявку (${count} ${pluralize(count, 'товар', 'товара', 'товаров')})`;
+                    `Отправить заявку (${totalQuantity} ${pluralize(totalQuantity, 'товар', 'товара', 'товаров')})`;
             } else {
                 badge.style.display = 'none';
                 bar.style.display = 'none';
@@ -221,8 +284,8 @@
         }
 
         function submitOrder() {
-            if (selected.size === 0) return;
-            const data = { selected_products: Array.from(selected) };
+            if (Object.keys(cart).length === 0) return;
+            const data = { cart: cart };
             tg.sendData(JSON.stringify(data));
         }
 
