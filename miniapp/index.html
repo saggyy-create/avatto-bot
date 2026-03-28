@@ -55,6 +55,7 @@
             display: none; align-items: center; justify-content: center;
             color: #fff; font-size: 14px; font-weight: bold;
             padding: 0 8px;
+            z-index: 5;
         }
         .product-card.selected .quantity-badge { display: flex; }
         .product-card img {
@@ -168,19 +169,18 @@
         tg.expand();
         tg.ready();
 
-        // API URL - update to match your server
         const API_URL = 'https://wintery-erminia-deducibly.ngrok-free.dev/api/products';
 
         let products = [];
-        let cart = {}; // { productId: quantity }
+        let cart = {};
 
         async function loadProducts() {
             try {
                 const res = await fetch(API_URL, {
-    headers: {
-        'ngrok-skip-browser-warning': 'true'
-    }
-});
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
                 products = await res.json();
 
                 document.getElementById('loading').style.display = 'none';
@@ -193,6 +193,7 @@
                 renderProducts();
                 document.getElementById('productsGrid').style.display = 'grid';
             } catch (e) {
+                console.error('Error loading products:', e);
                 document.getElementById('loading').innerHTML = '<p style="color:red">Ошибка загрузки 😔</p>';
             }
         }
@@ -200,8 +201,7 @@
         function renderProducts() {
             const grid = document.getElementById('productsGrid');
             grid.innerHTML = products.map(p => `
-                <div class="product-card ${cart[p.id] ? 'selected' : ''}"
-                     id="card-${p.id}">
+                <div class="product-card ${cart[p.id] ? 'selected' : ''}" id="card-${p.id}">
                     <div class="quantity-badge" id="badge-${p.id}">${cart[p.id] || 0}</div>
                     <div onclick="toggleProduct(${p.id})">
                         ${p.photo_url
