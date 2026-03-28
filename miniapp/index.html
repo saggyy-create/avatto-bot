@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Каталог товаров</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--tg-theme-bg-color, #f5f5f5);
+            color: var(--tg-theme-text-color, #222);
+            min-height: 100vh;
+        }
+        .header {
+            background: var(--tg-theme-bg-color, #fff);
+            padding: 16px;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .header h1 { font-size: 1.2rem; font-weight: 700; }
+        .header p { font-size: 0.85rem; color: var(--tg-theme-hint-color, #888); margin-top: 2px; }
+        .badge-count {
+            background: var(--tg-theme-button-color, #2196F3);
+            color: var(--tg-theme-button-text-color, #fff);
+            border-radius: 20px; padding: 2px 10px; font-size: 0.8rem;
+            display: inline-block; margin-left: 8px;
+        }
+        .search-bar {
+            padding: 12px 16px;
+            background: var(--tg-theme-bg-color, #fff);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            color: var(--tg-theme-text-color, #222);
+        }
+        .categories-bar {
+            padding: 12px 16px;
+            background: var(--tg-theme-bg-color, #fff);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        .categories-bar::-webkit-scrollbar { display: none; }
+        .category-chip {
+            display: inline-block;
+            padding: 8px 16px;
+            margin-right: 8px;
+            border-radius: 20px;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            color: var(--tg-theme-text-color, #222);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .category-chip.active {
+            background: var(--tg-theme-button-color, #2196F3);
+            color: var(--tg-theme-button-text-color, #fff);
+            border-color: var(--tg-theme-button-color, #2196F3);
+        }
+        .filters-bar {
+            padding: 12px 16px;
+            background: var(--tg-theme-bg-color, #fff);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .filter-label {
+            font-size: 0.85rem;
+            color: var(--tg-theme-hint-color, #888);
+        }
+        .price-inputs {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .price-input {
+            width: 80px;
+            padding: 6px 8px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            padding: 16px;
+        }
+        .product-card {
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            position: relative;
+            border: 2px solid transparent;
+        }
+        .product-card:active { transform: scale(0.97); }
+        .product-card.selected {
+            border-color: var(--tg-theme-button-color, #2196F3);
+            box-shadow: 0 0 0 3px rgba(33,150,243,0.15);
+        }
+        .product-card .quantity-badge {
+            position: absolute; top: 8px; right: 8px;
+            min-width: 28px; height: 28px;
+            background: var(--tg-theme-button-color, #2196F3);
+            border-radius: 14px;
+            display: none; align-items: center; justify-content: center;
+            color: #fff; font-size: 14px; font-weight: bold;
+            padding: 0 8px;
+            z-index: 5;
+        }
+        .product-card.selected .quantity-badge { display: flex; }
+        .product-card img {
+            width: 100%; height: 140px;
+            object-fit: cover; display: block;
+        }
+        .product-card .img-placeholder {
+            width: 100%; height: 140px;
+            background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem;
+        }
+        .product-info { padding: 10px; }
+        .product-name { font-weight: 600; font-size: 0.9rem; line-height: 1.3; }
+        .product-article { font-size: 0.75rem; color: var(--tg-theme-hint-color, #888); margin-top: 2px; }
+        .product-price {
+            font-size: 0.95rem; font-weight: 700; margin-top: 4px;
+            color: var(--tg-theme-button-color, #2196F3);
+        }
+        .quantity-controls {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(33,150,243,0.1);
+            border-radius: 8px;
+        }
+        .product-card.selected .quantity-controls { display: flex; }
+        .qty-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--tg-theme-button-color, #2196F3);
+            color: #fff;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qty-btn:active { opacity: 0.7; }
+        .qty-display {
+            font-size: 1.1rem;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
+        }
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+            color: var(--tg-theme-hint-color, #888);
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+        .loading { text-align: center; padding: 60px; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-top-color: var(--tg-theme-button-color, #2196F3);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 12px 16px;
+            background: var(--tg-theme-bg-color, #fff);
+            border-top: 1px solid rgba(0,0,0,0.08);
+            display: none;
+        }
+        .btn-submit {
+            width: 100%; padding: 14px;
+            background: var(--tg-theme-button-color, #2196F3);
+            color: var(--tg-theme-button-text-color, #fff);
+            border: none; border-radius: 12px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-submit:active { opacity: 0.85; }
+        .spacer { height: 80px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛍 Каталог товаров <span class="badge-count" id="selectedCount" style="display:none">0</span></h1>
+        <p>Выберите интересующие товары</p>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск товаров...">
+    </div>
+
+    <div class="categories-bar" id="categoriesBar" style="display:none;"></div>
+
+    <div class="filters-bar" id="filtersBar" style="display:none;">
+        <span class="filter-label">Цена:</span>
+        <div class="price-inputs">
+            <input type="number" id="minPrice" class="price-input" placeholder="От">
+            <span>—</span>
+            <input type="number" id="maxPrice" class="price-input" placeholder="До">
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Загрузка каталога...</p>
+    </div>
+
+    <div id="productsGrid" class="products-grid" style="display:none;"></div>
+    <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="icon">📦</div>
+        <p>Товары не найдены</p>
+    </div>
+    <div class="spacer"></div>
+
+    <div class="bottom-bar" id="bottomBar">
+        <button class="btn-submit" id="submitBtn" onclick="submitOrder()">
+            Отправить заявку
+        </button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        const API_URL = 'https://wintery-erminia-deducibly.ngrok-free.dev/api/products';
+        const CATEGORIES_URL = 'https://wintery-erminia-deducibly.ngrok-free.dev/api/categories';
+
+        let products = [];
+        let categories = [];
+        let cart = {};
+        let selectedCategory = null;
+        let searchQuery = '';
+        let minPrice = null;
+        let maxPrice = null;
+
+        // Load cart from localStorage
+        function loadCart() {
+            try {
+                const saved = localStorage.getItem('cart');
+                if (saved) {
+                    cart = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Error loading cart:', e);
+            }
+        }
+
+        // Save cart to localStorage
+        function saveCart() {
+            try {
+                localStorage.setItem('cart', JSON.stringify(cart));
+            } catch (e) {
+                console.error('Error saving cart:', e);
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                const res = await fetch(CATEGORIES_URL, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                categories = await res.json();
+                if (categories.length > 0) {
+                    renderCategories();
+                    document.getElementById('categoriesBar').style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Error loading categories:', e);
+            }
+        }
+
+        function renderCategories() {
+            const bar = document.getElementById('categoriesBar');
+            bar.innerHTML = `
+                <span class="category-chip ${selectedCategory === null ? 'active' : ''}" onclick="selectCategory(null)">
+                    Все
+                </span>
+            ` + categories.map(c => `
+                <span class="category-chip ${selectedCategory === c.id ? 'active' : ''}" onclick="selectCategory(${c.id})">
+                    ${c.icon || '📦'} ${c.name}
+                </span>
+            `).join('');
+        }
+
+        function selectCategory(id) {
+            selectedCategory = id;
+            renderCategories();
+            filterProducts();
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+
+        async function loadProducts() {
+            try {
+                const res = await fetch(API_URL, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                products = await res.json();
+
+                document.getElementById('loading').style.display = 'none';
+
+                if (products.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('filtersBar').style.display = 'flex';
+                filterProducts();
+            } catch (e) {
+                console.error('Error loading products:', e);
+                document.getElementById('loading').innerHTML = '<p style="color:red">Ошибка загрузки 😔</p>';
+            }
+        }
+
+        function filterProducts() {
+            let filtered = products;
+
+            // Filter by category
+            if (selectedCategory !== null) {
+                filtered = filtered.filter(p => p.category_id === selectedCategory);
+            }
+
+            // Filter by search
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                filtered = filtered.filter(p => 
+                    p.name.toLowerCase().includes(q) || 
+                    (p.description && p.description.toLowerCase().includes(q)) ||
+                    (p.article && p.article.toLowerCase().includes(q))
+                );
+            }
+
+            // Filter by price
+            if (minPrice !== null && minPrice !== '') {
+                filtered = filtered.filter(p => p.price && p.price >= parseFloat(minPrice));
+            }
+            if (maxPrice !== null && maxPrice !== '') {
+                filtered = filtered.filter(p => p.price && p.price <= parseFloat(maxPrice));
+            }
+
+            if (filtered.length === 0) {
+                document.getElementById('productsGrid').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'block';
+            } else {
+                document.getElementById('emptyState').style.display = 'none';
+                renderProducts(filtered);
+                document.getElementById('productsGrid').style.display = 'grid';
+            }
+        }
+
+        function renderProducts(filtered) {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = filtered.map(p => `
+                <div class="product-card ${cart[p.id] ? 'selected' : ''}" id="card-${p.id}">
+                    <div class="quantity-badge" id="badge-${p.id}">${cart[p.id] || 0}</div>
+                    <div onclick="toggleProduct(${p.id})">
+                        ${p.photo_url
+                            ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy">`
+                            : `<div class="img-placeholder">📦</div>`
+                        }
+                    </div>
+                    <div class="product-info">
+                        <div class="product-name">${p.name}</div>
+                        ${p.article ? `<div class="product-article">${p.article}</div>` : ''}
+                        ${p.price ? `<div class="product-price">${Math.round(p.price).toLocaleString('ru')} ₽</div>` : ''}
+                        <div class="quantity-controls">
+                            <button class="qty-btn" onclick="changeQuantity(${p.id}, -1); event.stopPropagation();">−</button>
+                            <div class="qty-display" id="qty-${p.id}">${cart[p.id] || 0}</div>
+                            <button class="qty-btn" onclick="changeQuantity(${p.id}, 1); event.stopPropagation();">+</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleProduct(id) {
+            if (cart[id]) {
+                delete cart[id];
+            } else {
+                cart[id] = 1;
+            }
+            updateProduct(id);
+            updateUI();
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+
+        function changeQuantity(id, delta) {
+            if (!cart[id]) cart[id] = 0;
+            cart[id] += delta;
+            if (cart[id] <= 0) {
+                delete cart[id];
+            }
+            updateProduct(id);
+            updateUI();
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function updateProduct(id) {
+            const card = document.getElementById(`card-${id}`);
+            const badge = document.getElementById(`badge-${id}`);
+            const qtyDisplay = document.getElementById(`qty-${id}`);
+            
+            if (cart[id]) {
+                card.classList.add('selected');
+                badge.textContent = cart[id];
+                qtyDisplay.textContent = cart[id];
+            } else {
+                card.classList.remove('selected');
+            }
+        }
+
+        function updateUI() {
+            const itemCount = Object.keys(cart).length;
+            const totalQuantity = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+            const badge = document.getElementById('selectedCount');
+            const bar = document.getElementById('bottomBar');
+
+            if (itemCount > 0) {
+                badge.textContent = totalQuantity;
+                badge.style.display = 'inline-block';
+                bar.style.display = 'block';
+                document.getElementById('submitBtn').textContent =
+                    `Отправить заявку (${totalQuantity} ${pluralize(totalQuantity, 'товар', 'товара', 'товаров')})`;
+            } else {
+                badge.style.display = 'none';
+                bar.style.display = 'none';
+            }
+            
+            saveCart();
+        }
+
+        function pluralize(n, one, two, five) {
+            if (n % 10 === 1 && n % 100 !== 11) return one;
+            if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return two;
+            return five;
+        }
+
+        function submitOrder() {
+            if (Object.keys(cart).length === 0) return;
+            const data = { cart: cart };
+            tg.sendData(JSON.stringify(data));
+            localStorage.removeItem('cart');
+        }
+
+        // Search input handler
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            filterProducts();
+        });
+
+        // Price filter handlers
+        document.getElementById('minPrice').addEventListener('input', (e) => {
+            minPrice = e.target.value;
+            filterProducts();
+        });
+
+        document.getElementById('maxPrice').addEventListener('input', (e) => {
+            maxPrice = e.target.value;
+            filterProducts();
+        });
+
+        // Initialize
+        loadCart();
+        loadCategories();
+        loadProducts().then(() => {
+            // Update UI after products are loaded to show saved cart items
+            updateUI();
+        });
+    </script>
+</body>
+</html>
